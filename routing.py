@@ -1,16 +1,29 @@
 """
 Routing module for Assignment 2B.
 
-This file builds a simple SCATS graph and finds routes using travel time as edge cost.
+This file:
+1. Builds a simple SCATS graph using nearest neighbours
+2. Loads a trained ML model
+3. Predicts traffic flow
+4. Converts predicted flow into travel time
+5. Finds top-k routes using travel time as edge cost
 """
 
 import heapq
+import argparse
+import numpy as np
 import pandas as pd
 
+from tensorflow.keras.models import load_model
+from data.data import process_data
 from traveltime import calculate_distance_km, calculate_travel_time
 
 
 def load_scats_nodes(file_path="data/processed_scats_15min.csv"):
+    """
+    Load unique SCATS sites and their coordinates.
+    """
+
     df = pd.read_csv(file_path)
 
     nodes = (
@@ -22,9 +35,10 @@ def load_scats_nodes(file_path="data/processed_scats_15min.csv"):
     return nodes
 
 
-def build_graph(nodes, max_neighbors=3):
+def build_graph(nodes, max_neighbors=8):
     """
-    Build simple graph by connecting each SCATS site to nearest neighbours.
+    Build a simple graph by connecting each SCATS site
+    to its nearest neighbouring SCATS sites.
     """
 
     graph = {}
@@ -58,37 +72,43 @@ def build_graph(nodes, max_neighbors=3):
     return graph
 
 
-def dijkstra(graph, origin, destination, predicted_flow):
+def predict_next_flow(model_name, site_id, lag=12):
     """
-    Find shortest-time path using Dijkstra.
+    Load trained ML model and predict next traffic flow
+    for the selected SCATS site.
     """
 
-    queue = [(0, origin, [origin])]
-    visited = set()
+    X_train, y_train, X_test, y_test, scaler = process_data(
+        file_path="data/processed_scats_15min.csv",
+        site_id=site_id,
+        lag=lag
+    )
 
-    while queue:
-        current_time, current_node, path = heapq.heappop(queue)
+    model_path = f"model/{model_name}_site_{site_id}.keras"
+    model = load_model(model_path)
 
-        if current_node == destination:
-            return current_time, path
+    latest_sequence = X_test[-1].reshape(1, lag)
 
-        if current_node in visited:
-            continue
+    if model_name in ["lstm", "gru"]:
+        latest_sequence = latest_sequence.reshape(1, lag, 1)
 
-        visited.add(current_node)
+    predicted_scaled = model.predict(latest_sequence, verbose=0)
 
-        for neighbor, distance_km in graph.get(current_node, []):
-            if neighbor not in visited:
-                edge_time = calculate_travel_time(distance_km, predicted_flow)
-                new_time = current_time + edge_time
-                heapq.heappush(queue, (new_time, neighbor, path + [neighbor]))
+    predicted_flow = scaler.inverse_transform(
+        predicted_scaled.reshape(-1, 1)
+    )[0][0]
 
-    return None, []
+    return predicted_flow
 
 
 def find_top_k_routes(graph, origin, destination, predicted_flow, k=5):
+    """
+    Find top-k routes using travel time as the edge cost.
+    """
+
     routes = []
     seen_paths = set()
+
     queue = [(0, origin, [origin])]
 
     while queue and len(routes) < k:
@@ -105,34 +125,94 @@ def find_top_k_routes(graph, origin, destination, predicted_flow, k=5):
 
         for neighbor, distance_km in graph.get(current_node, []):
             if neighbor not in path:
-                edge_time = calculate_travel_time(distance_km, predicted_flow)
+                edge_time = calculate_travel_time(
+                    distance_km,
+                    predicted_flow
+                )
+
                 new_time = current_time + edge_time
-                heapq.heappush(queue, (new_time, neighbor, path + [neighbor]))
+
+                heapq.heappush(
+                    queue,
+                    (new_time, neighbor, path + [neighbor])
+                )
 
     return routes
 
 
 if __name__ == "__main__":
-    nodes = load_scats_nodes()
-    graph = build_graph(nodes, max_neighbors=8)
+    parser = argparse.ArgumentParser()
 
-    origin = 2200
-    destination = 2825
-
-    # temporary example predicted flow
-    # later this should come from MLP/LSTM/GRU
-    predicted_flow = 500
-
-    routes = find_top_k_routes(
-        graph,
-        origin,
-        destination,
-        predicted_flow,
-        k=5
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="mlp",
+        help="Model to use: mlp, lstm, or gru"
     )
 
+    parser.add_argument(
+        "--site",
+        type=int,
+        default=2200,
+        help="SCATS site used for traffic flow prediction"
+    )
+
+    parser.add_argument(
+        "--origin",
+        type=int,
+        default=2200,
+        help="Origin SCATS site"
+    )
+
+    parser.add_argument(
+        "--destination",
+        type=int,
+        default=2825,
+        help="Destination SCATS site"
+    )
+
+    parser.add_argument(
+        "--neighbors",
+        type=int,
+        default=8,
+        help="Number of nearest neighbours connected to each SCATS site"
+    )
+
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=5,
+        help="Number of routes to return"
+    )
+
+    args = parser.parse_args()
+
+    model_name = args.model.lower()
+
+    nodes = load_scats_nodes()
+    graph = build_graph(nodes, max_neighbors=args.neighbors)
+
+    predicted_flow = predict_next_flow(
+        model_name=model_name,
+        site_id=args.site
+    )
+
+    routes = find_top_k_routes(
+        graph=graph,
+        origin=args.origin,
+        destination=args.destination,
+        predicted_flow=predicted_flow,
+        k=args.k
+    )
+
+    print(f"Model used: {model_name.upper()}")
+    print(f"Prediction SCATS site: {args.site}")
+    print(f"Predicted traffic flow: {round(predicted_flow, 2)}")
+    print(f"Top {args.k} routes from {args.origin} to {args.destination}")
+    print()
+
     if not routes:
-        print("No route found. Try increasing max_neighbors.")
+        print("No route found. Try increasing --neighbors.")
     else:
         for i, (time, path) in enumerate(routes, start=1):
             print(f"Route {i}:")
