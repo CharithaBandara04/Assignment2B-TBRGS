@@ -1,0 +1,9 @@
+LSTM Evaluation Results
+SCATS Site: 2200
+
+MAE: 16.5831
+MSE: 581.7312
+RMSE: 24.1191
+MAPE: 30.6727%
+R2 Score: 0.8497
+Explained Variance Score: 0.8509

@@ -1,0 +1,9 @@
+GRU Evaluation Results
+SCATS Site: 2200
+
+MAE: 16.5595
+MSE: 560.7377
+RMSE: 23.6799
+MAPE: 36.1651%
+R2 Score: 0.8552
+Explained Variance Score: 0.8552
