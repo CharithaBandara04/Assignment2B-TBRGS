@@ -1,0 +1,9 @@
+MLP Evaluation Results
+SCATS Site: 2200
+
+MAE: 16.8056
+MSE: 620.0916
+RMSE: 24.9016
+MAPE: 30.4292%
+R2 Score: 0.8398
+Explained Variance Score: 0.8458

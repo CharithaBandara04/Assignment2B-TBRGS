@@ -18,11 +18,11 @@ venv/
 *.h5
 
 # Generated outputs
-images/
-results/
+# images/
+# results/
 
 # Processed datasets
-data/processed_scats_15min.csv
+# data/processed_scats_15min.csv
 
 # Large/raw dataset
-data/Scats Data October 2006.csv
+# data/Scats Data October 2006.csv
