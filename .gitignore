@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Model files
+*.keras
+*.h5
+
+# Generated outputs
+images/
+results/
+
+# Processed datasets
+data/processed_scats_15min.csv
+
+# Large/raw dataset
+data/Scats Data October 2006.csv
