@@ -1,8 +1,31 @@
 """
-Travel time estimation module for Assignment 2B.
+Travel time estimation module for COS30019 Assignment 2B.
 
-This file converts predicted traffic flow into speed and travel time.
-It can be used by MLP, LSTM, and GRU predictions.
+Purpose of this file:
+---------------------
+This file DOES NOT decide which SCATS sites are connected.
+
+The SCATS road connections should come from:
+    data/scats_connections.csv
+
+This file only does the mathematical conversion used after a valid edge
+has already been selected by the routing/TBRGS program.
+
+For a valid edge:
+    SCATS A -> SCATS B
+
+The route program should:
+    1. Predict the traffic flow at SCATS site B using the trained ML model.
+    2. Convert the predicted 15-minute flow into hourly flow if needed.
+    3. Use this file to convert flow + distance into travel time.
+    4. Use that travel time as the edge cost.
+
+Main formula idea:
+------------------
+The ML model predicts traffic flow.
+Traffic flow is converted into estimated speed.
+Distance and speed are used to calculate travel time.
+An average 30 second delay is added for each controlled intersection.
 """
 
 import math
@@ -12,22 +35,50 @@ SPEED_LIMIT_KMH = 60
 INTERSECTION_DELAY_SECONDS = 30
 
 
-def flow_to_speed(flow):
+def convert_15min_flow_to_hourly(predicted_15min_flow):
     """
-    Convert traffic flow into estimated speed.
+    Convert a predicted 15-minute traffic flow value into an approximate hourly flow.
 
-    Formula:
-    flow = -1.4648375 * speed^2 + 93.75 * speed
+    The SCATS dataset has 96 values per day:
+        24 hours * 4 values per hour = 96
+
+    Therefore, each model prediction is for one 15-minute interval.
+
+    Example:
+        predicted_15min_flow = 120 vehicles per 15 minutes
+        predicted_hourly_flow = 120 * 4 = 480 vehicles per hour
     """
 
-    flow = max(0, float(flow))
+    predicted_15min_flow = max(0, float(predicted_15min_flow))
 
-    if flow <= 351:
+    return predicted_15min_flow * 4
+
+
+def flow_to_speed(hourly_flow):
+    """
+    Convert hourly traffic flow into estimated speed in km/h.
+
+    The simplified assignment formula is:
+
+        flow = -1.4648375 * speed^2 + 93.75 * speed
+
+    In this function, flow means accumulated hourly traffic volume.
+
+    If the hourly flow is low, the speed is assumed to be the speed limit:
+        60 km/h
+
+    If the quadratic equation cannot produce a valid result, a fallback
+    speed of 32 km/h is used.
+    """
+
+    hourly_flow = max(0, float(hourly_flow))
+
+    if hourly_flow <= 351:
         return SPEED_LIMIT_KMH
 
     a = -1.4648375
     b = 93.75
-    c = -flow
+    c = -hourly_flow
 
     discriminant = b**2 - 4 * a * c
 
@@ -47,8 +98,14 @@ def flow_to_speed(flow):
 
 def calculate_distance_km(lat1, lon1, lat2, lon2):
     """
-    Calculate straight-line distance between two SCATS sites
-    using latitude and longitude.
+    Calculate the straight-line distance between two SCATS sites using latitude
+    and longitude.
+
+    This function only calculates distance. It does not decide whether two SCATS
+    sites are connected by road.
+
+    The routing program should only call this function for valid road links from:
+        data/scats_connections.csv
     """
 
     earth_radius_km = 6371
@@ -71,12 +128,35 @@ def calculate_distance_km(lat1, lon1, lat2, lon2):
     return earth_radius_km * c
 
 
-def calculate_travel_time(distance_km, predicted_flow):
+def calculate_travel_time(distance_km, predicted_hourly_flow):
     """
-    Calculate travel time in minutes using distance and predicted flow.
+    Calculate travel time in minutes for one valid road edge.
+
+    Args:
+        distance_km:
+            Distance between two connected SCATS sites.
+
+        predicted_hourly_flow:
+            Predicted accumulated hourly traffic volume at the destination
+            SCATS site of the edge.
+
+    Returns:
+        Total edge travel time in minutes.
+
+    Important:
+        If your ML model prediction is a 15-minute flow value, convert it first:
+
+            predicted_hourly_flow = convert_15min_flow_to_hourly(predicted_15min_flow)
+
+        Then call:
+
+            calculate_travel_time(distance_km, predicted_hourly_flow)
     """
 
-    speed_kmh = flow_to_speed(predicted_flow)
+    distance_km = max(0, float(distance_km))
+    predicted_hourly_flow = max(0, float(predicted_hourly_flow))
+
+    speed_kmh = flow_to_speed(predicted_hourly_flow)
 
     time_hours = distance_km / speed_kmh
     time_minutes = time_hours * 60
@@ -88,18 +168,51 @@ def calculate_travel_time(distance_km, predicted_flow):
     return total_time_minutes
 
 
+def calculate_edge_travel_time_from_15min_flow(distance_km, predicted_15min_flow):
+    """
+    Convenience function for the TBRGS program.
+
+    Use this when the ML model gives a 15-minute flow prediction.
+
+    It performs:
+        15-minute flow -> hourly flow -> speed -> travel time
+
+    This is useful for a valid edge:
+        SCATS A -> SCATS B
+
+    where predicted_15min_flow is the model prediction for SCATS site B.
+    """
+
+    predicted_hourly_flow = convert_15min_flow_to_hourly(predicted_15min_flow)
+
+    return calculate_travel_time(
+        distance_km=distance_km,
+        predicted_hourly_flow=predicted_hourly_flow
+    )
+
+
 if __name__ == "__main__":
-    # Example test
-    predicted_flow = 500
+    # Example test for one valid road edge.
+    # This does not check road connectivity. It only tests the travel time maths.
+
+    predicted_15min_flow = 125
 
     lat1, lon1 = -37.81655, 145.09831
     lat2, lon2 = -37.82300, 145.10500
 
     distance = calculate_distance_km(lat1, lon1, lat2, lon2)
-    speed = flow_to_speed(predicted_flow)
-    travel_time = calculate_travel_time(distance, predicted_flow)
 
-    print("Predicted flow:", predicted_flow)
+    predicted_hourly_flow = convert_15min_flow_to_hourly(predicted_15min_flow)
+
+    speed = flow_to_speed(predicted_hourly_flow)
+
+    travel_time = calculate_travel_time(
+        distance_km=distance,
+        predicted_hourly_flow=predicted_hourly_flow
+    )
+
+    print("Predicted 15-minute flow:", predicted_15min_flow)
+    print("Predicted hourly flow:", predicted_hourly_flow)
     print("Estimated speed:", round(speed, 2), "km/h")
     print("Distance:", round(distance, 3), "km")
-    print("Estimated travel time:", round(travel_time, 2), "minutes")
+    print("Estimated edge travel time:", round(travel_time, 2), "minutes")
