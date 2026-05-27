@@ -18,7 +18,7 @@ venv/
 *.h5
 
 # Generated outputs
-# images/
+images/
 results/
 
 # Processed datasets
