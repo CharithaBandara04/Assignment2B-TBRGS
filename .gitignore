@@ -19,7 +19,7 @@ venv/
 
 # Generated outputs
 # images/
-# results/
+results/
 
 # Processed datasets
 # data/processed_scats_15min.csv
