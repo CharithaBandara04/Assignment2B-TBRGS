@@ -41,6 +41,7 @@ Instead, connect the neighbouring segments only.
 """
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import heapq
 import argparse
 from pathlib import Path
@@ -49,6 +50,8 @@ import numpy as np
 import pandas as pd
 
 from tensorflow.keras.models import load_model
+
+from search_algorithms import top_k_uniform_cost_search
 
 from traveltime import (
     calculate_distance_km,
@@ -455,91 +458,66 @@ def find_top_k_routes(
     max_expansions=50000
 ):
     """
-    Find up to k lowest-time routes using uniform-cost search.
+    Find up to k lowest-time routes.
 
-    The queue always expands the path with the lowest total travel time so far.
+    This function connects Assignment 2A to Assignment 2B.
 
-    A route is only allowed to use edges from scats_connections.csv.
+    Assignment 2A:
+        CUS1 used Uniform Cost Search to minimise path cost.
+
+    Assignment 2B:
+        The same Uniform Cost Search idea is reused, but the edge cost is now
+        calculated dynamically as predicted travel time.
+
+    The actual search algorithm is imported from:
+        search_algorithms.py
     """
 
-    origin = int(origin)
-    destination = int(destination)
-
     prediction_cache = {}
-    routes = []
-    seen_complete_paths = set()
 
-    # Queue item:
-    #   total_time_minutes, current_site, path_list, edge_details_list
-    queue = [(0.0, origin, [origin], [])]
+    def edge_cost_function(current_site, next_site, edge):
+        """
+        Calculate edge travel time for the search algorithm.
 
-    expansions = 0
+        For an edge A -> B:
+            - B is next_site
+            - the trained model for B predicts traffic flow at B
+            - traveltime.py converts that flow and distance into edge time
+        """
 
-    while queue and len(routes) < k:
-        expansions += 1
+        distance_km = float(edge["distance_km"])
 
-        if expansions > max_expansions:
-            print(
-                f"Stopped search after {max_expansions} expansions. "
-                "Try improving the graph or reducing route complexity."
-            )
-            break
+        edge_time, prediction_info = calculate_edge_cost(
+            from_site=current_site,
+            to_site=next_site,
+            distance_km=distance_km,
+            model_name=model_name,
+            requested_datetime=requested_datetime,
+            df=df,
+            prediction_cache=prediction_cache,
+            lag=lag
+        )
 
-        current_time, current_site, path, edge_details = heapq.heappop(queue)
+        edge_detail = {
+            "from_site": int(current_site),
+            "to_site": int(next_site),
+            "distance_km": distance_km,
+            "predicted_15min_flow_at_to_site": prediction_info["predicted_15min_flow"],
+            "predicted_hourly_flow_at_to_site": prediction_info["predicted_hourly_flow"],
+            "estimated_speed_kmh": prediction_info["estimated_speed_kmh"],
+            "edge_time_minutes": edge_time
+        }
 
-        if current_site == destination:
-            path_tuple = tuple(path)
+        return edge_time, edge_detail
 
-            if path_tuple not in seen_complete_paths:
-                seen_complete_paths.add(path_tuple)
-
-                routes.append({
-                    "route_number": len(routes) + 1,
-                    "total_time_minutes": current_time,
-                    "path": path,
-                    "edge_details": edge_details
-                })
-
-            continue
-
-        for edge in graph.get(current_site, []):
-            next_site = int(edge["to"])
-            distance_km = float(edge["distance_km"])
-
-            # Avoid loops such as 2000 -> 2200 -> 2000.
-            if next_site in path:
-                continue
-
-            edge_time, prediction_info = calculate_edge_cost(
-                from_site=current_site,
-                to_site=next_site,
-                distance_km=distance_km,
-                model_name=model_name,
-                requested_datetime=requested_datetime,
-                df=df,
-                prediction_cache=prediction_cache,
-                lag=lag
-            )
-
-            new_edge_details = edge_details + [{
-                "from_site": current_site,
-                "to_site": next_site,
-                "distance_km": distance_km,
-                "predicted_15min_flow_at_to_site": prediction_info["predicted_15min_flow"],
-                "predicted_hourly_flow_at_to_site": prediction_info["predicted_hourly_flow"],
-                "estimated_speed_kmh": prediction_info["estimated_speed_kmh"],
-                "edge_time_minutes": edge_time
-            }]
-
-            heapq.heappush(
-                queue,
-                (
-                    current_time + edge_time,
-                    next_site,
-                    path + [next_site],
-                    new_edge_details
-                )
-            )
+    routes = top_k_uniform_cost_search(
+        graph=graph,
+        origin=origin,
+        destination=destination,
+        edge_cost_function=edge_cost_function,
+        k=k,
+        max_expansions=max_expansions
+    )
 
     return routes
 
@@ -550,49 +528,22 @@ def find_top_k_routes(
 
 def print_routes(routes, node_map):
     """
-    Print route results in a readable format.
+    Print route results in a simple assignment-friendly format.
     """
 
     if not routes:
         print("No route found.")
-        print("Possible reasons:")
-        print("  1. Origin and destination are not connected in scats_connections.csv.")
-        print("  2. One of the SCATS sites has no outgoing road connection.")
-        print("  3. The graph is incomplete.")
-        print("  4. The selected model file is missing for an intermediate SCATS site.")
         return
 
+    print("Routes:")
     for route in routes:
-        print("=" * 90)
-        print(f"Route {route['route_number']}")
-        print("=" * 90)
-
-        path = route["path"]
+        path_text = " -> ".join(str(site) for site in route["path"])
         total_time = route["total_time_minutes"]
 
-        print("Path:")
-        print(" -> ".join(str(site) for site in path))
-
-        print("\nIntersections:")
-        for site in path:
-            location = node_map.get(site, {}).get("location", "Unknown location")
-            print(f"  {site}: {location}")
-
-        print(f"\nEstimated total travel time: {total_time:.2f} minutes")
-
-        print("\nEdge breakdown:")
-        for edge in route["edge_details"]:
-            print(
-                f"  {edge['from_site']} -> {edge['to_site']} | "
-                f"distance={edge['distance_km']:.3f} km | "
-                f"predicted 15-min flow at {edge['to_site']}={edge['predicted_15min_flow_at_to_site']:.2f} | "
-                f"hourly flow={edge['predicted_hourly_flow_at_to_site']:.2f} | "
-                f"speed={edge['estimated_speed_kmh']:.2f} km/h | "
-                f"edge time={edge['edge_time_minutes']:.2f} min"
-            )
-
-        print()
-
+        print(
+            f"Route {route['route_number']}: "
+            f"{path_text} | Travel time: {total_time:.2f} minutes"
+        )
 
 def save_routes_to_csv(routes, output_path="results/tbrgs_routes.csv"):
     """
@@ -635,8 +586,8 @@ def save_routes_to_csv(routes, output_path="results/tbrgs_routes.csv"):
     edge_output_path = output_path.replace(".csv", "_edge_details.csv")
     pd.DataFrame(edge_rows).to_csv(edge_output_path, index=False)
 
-    print(f"Route summary saved to: {output_path}")
-    print(f"Route edge details saved to: {edge_output_path}")
+    print()
+    print(f"Results saved to: {output_path}")
 
 
 def print_graph_summary(graph):
@@ -733,17 +684,12 @@ def main():
     validate_site(args.destination, node_map, graph=None, role="destination")
 
     print()
-    print("=" * 90)
     print("Traffic-Based Route Guidance System")
-    print("=" * 90)
-    print(f"Origin: {args.origin} - {node_map[args.origin]['location']}")
-    print(f"Destination: {args.destination} - {node_map[args.destination]['location']}")
-    print(f"Requested datetime: {requested_datetime}")
-    print(f"Model used: {args.model.upper()}")
-    print(f"Top-k routes requested: {args.k}")
-    print(f"Connections file: {args.connections}")
-    print_graph_summary(graph)
-    print("=" * 90)
+    print("-----------------------------------")
+    print(f"Origin: {args.origin}")
+    print(f"Destination: {args.destination}")
+    print(f"Time: {requested_datetime}")
+    print(f"Model: {args.model.upper()}")
     print()
 
     routes = find_top_k_routes(
