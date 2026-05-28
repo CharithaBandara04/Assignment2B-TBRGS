@@ -14,7 +14,7 @@ venv/
 .idea/
 
 # Model files
-*.keras
+.keras
 *.h5
 
 # Generated outputs
