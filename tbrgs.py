@@ -24,20 +24,8 @@ IMPORTANT GRAPH RULE:
 The program only allows travel between SCATS sites listed in:
 
     data/scats_connections.csv
-
-That CSV should look like:
-
-    from_site,to_site
-    2000,2200
-    2200,2000
-    2200,2825
-    2825,2200
-
-Each row means:
-    from_site can travel directly to to_site
-
-If A -> B has another SCATS site in the middle, do not connect A directly to B.
-Instead, connect the neighbouring segments only.
+This file is a manually created list of valid road connections between SCATS sites.
+The TBRGS program will only consider routes that follow these connections.
 """
 
 import os
