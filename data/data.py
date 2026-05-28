@@ -1,6 +1,4 @@
 """
-Reusable data module for Assignment 2B.
-
 This file loads the processed SCATS dataset and prepares
 train/test data for LSTM, GRU, and MLP models.
 """
