@@ -1,3 +1,13 @@
+"""
+Preprocess the raw SCATS dataset from October 2006.
+The raw dataset has 96 columns for traffic flow (V00 to V95), representing 15-minute intervals throughout the day.
+This script reshapes the data into a long format with one row per timestamp and flow value,and saves the processed dataset as a new CSV file.
+
+Example command:
+    python preprocess_scats.py
+    
+"""
+
 import pandas as pd
 import os
 
