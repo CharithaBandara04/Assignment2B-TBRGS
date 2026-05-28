@@ -6,29 +6,6 @@ This script trains three models for every SCATS site:
 2. LSTM
 3. GRU
 
-Expected project structure:
-
-ASSIGNMENT2B-TUTOR-STYLE/
-│
-├── train_all_sites.py
-├── train.py
-├── main.py
-├── routing.py
-├── traveltime.py
-│
-├── data/
-│   ├── data.py
-│   ├── processed_scats_15min.csv
-│   └── Scats Data October 2006.csv
-│
-├── model/
-│   ├── model.py
-│   ├── mlp_site_2200.keras
-│   ├── lstm_site_2200.keras
-│   └── gru_site_2200.keras
-│
-└── results/
-
 Example commands:
 
 Train all SCATS sites using all three models:

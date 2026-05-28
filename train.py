@@ -5,6 +5,10 @@ Usage:
 python train.py --model mlp --site 2200
 python train.py --model lstm --site 2200
 python train.py --model gru --site 2200
+
+This script loads the processed SCATS dataset, prepares training data for the specified SCATS site, trains the selected model type (MLP, LSTM, or GRU), and saves the trained model and training history to disk.
+This script was used for old model versions. For training all sites and models, see train_all_sites.py.
+
 """
 
 import os
