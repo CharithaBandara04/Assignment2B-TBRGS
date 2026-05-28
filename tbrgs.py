@@ -49,9 +49,9 @@ from traveltime import (
 )
 
 
-# ---------------------------------------------------------------------------
+
 # File paths and constants
-# ---------------------------------------------------------------------------
+
 
 DATA_PATH = "data/processed_scats_15min.csv"
 CONNECTIONS_PATH = "data/scats_connections.csv"
@@ -61,9 +61,9 @@ RESULTS_DIR = "results"
 DEFAULT_LAG = 12
 
 
-# ---------------------------------------------------------------------------
+
 # Data loading
-# ---------------------------------------------------------------------------
+
 
 def load_scats_data(file_path=DATA_PATH):
     """
@@ -161,9 +161,9 @@ def load_connections(file_path=CONNECTIONS_PATH):
     return connections
 
 
-# ---------------------------------------------------------------------------
+
 # Graph construction
-# ---------------------------------------------------------------------------
+
 
 def build_graph_from_connections(connections, nodes):
     """
@@ -250,9 +250,9 @@ def validate_site(site_id, node_map, graph=None, role="site"):
         )
 
 
-# ---------------------------------------------------------------------------
+
 # ML prediction helper functions
-# ---------------------------------------------------------------------------
+
 
 def get_previous_flow_sequence(df, site_id, requested_datetime, lag=DEFAULT_LAG):
     """
@@ -371,9 +371,9 @@ def predict_15min_flow(model_name, site_id, requested_datetime, df, lag=DEFAULT_
     return predicted_15min_flow
 
 
-# ---------------------------------------------------------------------------
+
 # Edge cost calculation
-# ---------------------------------------------------------------------------
+
 
 def calculate_edge_cost(
     from_site,
@@ -430,9 +430,9 @@ def calculate_edge_cost(
     return edge_time_minutes, prediction_cache[to_site]
 
 
-# ---------------------------------------------------------------------------
+
 # Top-k route search
-# ---------------------------------------------------------------------------
+
 
 def find_top_k_routes(
     graph,
@@ -510,9 +510,9 @@ def find_top_k_routes(
     return routes
 
 
-# ---------------------------------------------------------------------------
+
 # Output functions
-# ---------------------------------------------------------------------------
+
 
 def print_routes(routes, node_map):
     """
@@ -590,9 +590,9 @@ def print_graph_summary(graph):
     print(f"Manual graph directed edges: {edge_count}")
 
 
-# ---------------------------------------------------------------------------
+
 # Main command-line program
-# ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
