@@ -5,6 +5,9 @@ Usage:
 python main.py --model mlp --site 2200
 python main.py --model lstm --site 2200
 python main.py --model gru --site 2200
+
+This script loads a trained model, makes predictions on the test set,
+calculates evaluation metrics, and saves results to a text file and graph.
 """
 
 import os
