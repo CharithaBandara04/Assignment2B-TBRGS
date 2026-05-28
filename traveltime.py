@@ -2,11 +2,6 @@
 Travel time estimation module for COS30019 Assignment 2B.
 
 Purpose of this file:
----------------------
-This file DOES NOT decide which SCATS sites are connected.
-
-The SCATS road connections should come from:
-    data/scats_connections.csv
 
 This file only does the mathematical conversion used after a valid edge
 has already been selected by the routing/TBRGS program.
