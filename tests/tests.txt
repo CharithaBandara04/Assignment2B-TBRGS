@@ -1,0 +1,80 @@
+TBRGS Test Commands
+===================
+
+This file contains 15 command-line test cases for the COS30019 Assignment 2B Traffic-Based Route Guidance System.
+
+Before running these commands:
+1. Activate the Python virtual environment.
+2. Make sure all required packages are installed.
+3. Make sure trained models exist in the model/ folder.
+4. Make sure data/scats_connections.csv contains the SCATS connection graph.
+5. Run commands from the project root folder.
+
+Example project root:
+Assignment2B-Tutor-Style/
+
+
+Successful Route Tests
+----------------------
+
+Test 1: Basic MLP route from 970 to 3685
+python tbrgs.py --origin 970 --destination 3685 --datetime "2006-10-15 08:00" --model mlp --k 5
+
+Test 2: Same route using LSTM
+python tbrgs.py --origin 970 --destination 3685 --datetime "2006-10-15 08:00" --model lstm --k 5
+
+Test 3: Same route using GRU
+python tbrgs.py --origin 970 --destination 3685 --datetime "2006-10-15 08:00" --model gru --k 5
+
+Test 4: Long route across graph from 970 to 4821
+python tbrgs.py --origin 970 --destination 4821 --datetime "2006-10-15 08:00" --model mlp --k 5
+
+Test 5: Reverse long route from 4821 to 970
+python tbrgs.py --origin 4821 --destination 970 --datetime "2006-10-15 08:00" --model mlp --k 5
+
+Test 6: Morning peak test from 2000 to 4063
+python tbrgs.py --origin 2000 --destination 4063 --datetime "2006-10-10 08:00" --model mlp --k 5
+
+Test 7: Afternoon peak test from 2000 to 4063
+python tbrgs.py --origin 2000 --destination 4063 --datetime "2006-10-10 17:30" --model mlp --k 5
+
+Test 8: Midday test from 3001 to 4335 using LSTM
+python tbrgs.py --origin 3001 --destination 4335 --datetime "2006-10-12 12:15" --model lstm --k 5
+
+Test 9: Night-time test from 4262 to 4273 using GRU
+python tbrgs.py --origin 4262 --destination 4273 --datetime "2006-10-18 22:45" --model gru --k 5
+
+Test 10: Top-k route test from 3812 to 3002
+python tbrgs.py --origin 3812 --destination 3002 --datetime "2006-10-20 09:30" --model mlp --k 5
+
+Test 11: Different connected route area from 2825 to 4321
+python tbrgs.py --origin 2825 --destination 4321 --datetime "2006-10-16 14:00" --model lstm --k 5
+
+Test 12: Cross-network route from 2200 to 4812 using GRU
+python tbrgs.py --origin 2200 --destination 4812 --datetime "2006-10-19 16:45" --model gru --k 5
+
+
+Error / Boundary Tests
+----------------------
+
+Test 13: Invalid SCATS site
+Expected result: The program should show an invalid site error.
+python tbrgs.py --origin 9999 --destination 2820 --datetime "2006-10-15 08:00" --model mlp --k 5
+
+Test 14: Time not on 15-minute interval
+Expected result: The program should warn/reject if time validation exists; otherwise it will use previous available values.
+python tbrgs.py --origin 970 --destination 3685 --datetime "2006-10-15 08:07" --model mlp --k 5
+
+Test 15: Too early in dataset
+Expected result: The program should show a not enough previous data error.
+python tbrgs.py --origin 970 --destination 3685 --datetime "2006-10-01 01:00" --model mlp --k 5
+
+
+Notes
+-----
+
+- Tests 1 to 12 are successful route-generation tests.
+- Tests 13 to 15 are error or boundary tests.
+- The dataset is based on October 2006 SCATS traffic data.
+- The time should normally use 15-minute intervals such as 00, 15, 30, or 45.
+- The --k 5 argument asks the system to return up to five routes.
