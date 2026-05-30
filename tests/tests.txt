@@ -11,7 +11,7 @@ Before running these commands:
 5. Run commands from the project root folder.
 
 Example project root:
-Assignment2B-Tutor-Style/
+Assignment2B-TBRGS/
 
 
 Successful Route Tests
